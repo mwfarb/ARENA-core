@@ -10,6 +10,7 @@ const loadArena = (urlToLoad, position, rotation) => {
     if (urlToLoad) xhr.open('GET', urlToLoad);
     else xhr.open('GET', globals.persistenceUrl);
 
+    window.pendingModules = [];
     xhr.responseType = 'json';
     xhr.send();
     let deferredObjects = [];
@@ -117,19 +118,22 @@ const unloadArena = (urlToLoad) => {
 mqttClient.onConnectionLost = onConnectionLost;
 mqttClient.onMessageArrived = onMessageArrived;
 
+// Last Will and Testament message sent to subscribers if this client loses connection
+let lwt = new Paho.MQTT.Message(JSON.stringify({
+    object_id: globals.camName,
+    action: "delete"
+}));
+lwt.destinationName = globals.outputTopic + globals.camName;
+lwt.qos = 2;
+lwt.retained = false;
+
 window.addEventListener('onauth', function (e) {
     globals.username = e.detail.mqtt_username;
     globals.mqttToken = e.detail.mqtt_token;
 
-    // Last Will and Testament message sent to subscribers if this client loses connection
-    const lwt = new Paho.MQTT.Message(JSON.stringify({
-        object_id: globals.camName,
-        action: "delete"
-    }));
+    // update lwt with updated global auth name
+    lwt.object_id = globals.camName;
     lwt.destinationName = globals.outputTopic + globals.camName;
-    lwt.qos = 2;
-    lwt.retained = false;
-
     mqttClient.connect({
         onSuccess: onConnect,
         willMessage: lwt,
@@ -829,7 +833,7 @@ function onMessageArrived(message, jsonMessage) {
                             if (entityEl) {
                                 for (let child of entityEl.children) {
                                     if (child.getAttribute("id").includes("cube") ||
-                                        child.getAttribute("id").includes("hat")) {
+                                        child.getAttribute("id").includes("Hat")) {
                                         entityEl.removeChild(child);
                                     }
                                 }
